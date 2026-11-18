@@ -6,32 +6,28 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
 
-// theme
-$('themeBtn').onclick = () => {
-  const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-  document.documentElement.dataset.theme = t; try { localStorage.setItem('theme', t); } catch {}
-  draw();
-};
-
-// connection type: auto-detect when the browser reports it, else manual (remembered)
-function detectConn() {
-  const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-  const t = c && c.type;
-  return t === 'wifi' || t === 'cellular' ? t : null;
-}
+// connection type: shown only when the browser reports it (Android Chrome, sometimes)
 function applyConn() {
-  const auto = detectConn(), seg = $('conn');
-  const val = auto || store.get('connType', null);
-  seg.classList.toggle('auto', !!auto);
-  seg.querySelectorAll('button').forEach(b => { b.classList.toggle('on', b.dataset.v === val); b.disabled = !!auto; });
-  $('connNote').textContent = auto ? 'Detected automatically' : (val ? '' : 'Not reported by this browser. Choose one.');
+  const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  const t = c && c.type, el = $('connType');
+  if (t === 'wifi' || t === 'cellular') { el.textContent = t === 'wifi' ? 'Wi-Fi' : 'Cellular'; el.hidden = false; }
+  else el.hidden = true;
 }
-$('conn').addEventListener('click', e => {
-  const b = e.target.closest('button'); if (!b || detectConn()) return;
-  store.set('connType', b.dataset.v); applyConn();
-});
 (navigator.connection || {}).onchange = applyConn;
 applyConn();
+
+// gauges
+const SCALES = [10, 25, 50, 100, 250, 500, 1000, 2500, 10000];
+const gmax = { dl: 100, ul: 100 };
+function gauge(id, val, shrink) {
+  const v = Number(val); if (!isFinite(v)) { $(id).textContent = '–'; return; }
+  if (shrink) gmax[id] = SCALES.find(x => x >= v * 1.05) || SCALES[SCALES.length - 1];
+  while (v > gmax[id] && gmax[id] < SCALES[SCALES.length - 1]) gmax[id] = SCALES.find(x => x > gmax[id]);
+  $(id).textContent = fmt(v);
+  $(id + 'Arc').style.strokeDasharray = `${Math.min(100, v / gmax[id] * 100)} 200`; $(id + 'Arc').style.opacity = v > 0 ? 1 : 0;
+  $(id + 'Max').textContent = gmax[id];
+}
+function resetGauge(id) { gmax[id] = 100; $(id).textContent = '–'; $(id + 'Arc').style.strokeDasharray = '0 200'; $(id + 'Arc').style.opacity = 0; $(id + 'Max').textContent = 100; }
 
 function setWifi(q) {
   const el = $('wifi'); const lv = q == null ? -1 : q >= 75 ? 3 : q >= 50 ? 2 : q >= 25 ? 1 : 0;
@@ -132,59 +128,28 @@ function showQuality(q) {
   setWifi(q); $('qBar').style.width = q + '%'; $('qBar').style.background = color;
 }
 
-// ---- chart ----
-const hist = { dl: [], q: [] }; const MAX = 60;
-function draw() {
-  const cv = $('chart'), dpr = devicePixelRatio || 1;
-  const w = cv.clientWidth, h = cv.clientHeight;
-  cv.width = w * dpr; cv.height = h * dpr;
-  const c = cv.getContext('2d'); c.scale(dpr, dpr); c.clearRect(0, 0, w, h);
-  const css = getComputedStyle(document.documentElement);
-  const col = n => css.getPropertyValue(n).trim();
-  const pad = { l: 36, r: 8, t: 8, b: 8 };
-  const max = Math.max(10, ...hist.dl) * 1.15;
-  c.font = '11px Inter, sans-serif'; c.fillStyle = col('--muted'); c.strokeStyle = col('--border'); c.lineWidth = 1;
-  for (let i = 0; i <= 4; i++) {
-    const y = pad.t + (h - pad.t - pad.b) * i / 4;
-    c.beginPath(); c.moveTo(pad.l, y); c.lineTo(w - pad.r, y); c.stroke();
-    c.textAlign = 'right'; c.fillText(Math.round(max * (1 - i / 4)), pad.l - 6, y + 4);
-  }
-  const line = (arr, top, color, fill) => {
-    if (arr.length < 2) return;
-    const x = i => pad.l + (w - pad.l - pad.r) * (MAX - arr.length + i) / (MAX - 1);
-    const y = v => pad.t + (h - pad.t - pad.b) * (1 - v / top);
-    c.beginPath(); arr.forEach((v, i) => i ? c.lineTo(x(i), y(v)) : c.moveTo(x(i), y(v)));
-    c.strokeStyle = color; c.lineWidth = 2; c.lineJoin = 'round'; c.stroke();
-    if (fill) { c.lineTo(x(arr.length - 1), h - pad.b); c.lineTo(x(0), h - pad.b); c.closePath(); c.globalAlpha = .1; c.fillStyle = color; c.fill(); c.globalAlpha = 1; }
-  };
-  line(hist.dl, max, col('--a'), true);
-  line(hist.q, 100, col('--b'), false);
-}
-addEventListener('resize', draw);
-const push = (dl, q) => { hist.dl.push(dl); hist.q.push(q); if (hist.dl.length > MAX) { hist.dl.shift(); hist.q.shift(); } draw(); };
-
 // ---- speed test ----
-let busy = null; // AbortController for whichever mode is running
+let busy = null, testing = false; // AbortController for whichever mode is running
 const last = { dl: null, ping: null, q: null };
 $('testBtn').onclick = async () => {
-  if (busy) return;
-  busy = new AbortController(); const sig = busy.signal;
-  $('testBtn').disabled = true; $('liveBtn').disabled = true;
+  if (busy) { if (testing) busy.abort(); return; }
+  busy = new AbortController(); const sig = busy.signal; testing = true;
+  $('testBtn').textContent = 'Stop test'; $('testBtn').classList.add('live'); $('liveBtn').disabled = true;
   try {
     setStatus('Measuring ping…');
-    const p = await pingTest(10, sig);
+    resetGauge('dl'); resetGauge('ul'); const p = await pingTest(10, sig);
     $('ping').textContent = fmt(p.ping); $('jit').textContent = fmt(p.jitter);
     setStatus('Testing download…');
-    const dl = await download(8000, v => $('dl').textContent = fmt(v), sig);
-    $('dl').textContent = fmt(dl);
+    const dl = await download(8000, v => gauge('dl', fmt(v)), sig);
+    gauge('dl', fmt(dl));
     setStatus('Testing upload…');
-    const ul = await upload(6000, v => $('ul').textContent = fmt(v), sig);
-    $('ul').textContent = fmt(ul);
+    const ul = await upload(6000, v => gauge('ul', fmt(v)), sig);
+    gauge('ul', fmt(ul));
     trackBest(dl, p.ping); const q = quality(dl, p.ping); showQuality(q); refNote();
     Object.assign(last, { dl, ping: p.ping, q });
     setStatus('Done.');
   } catch (e) { setStatus(sig.aborted ? 'Stopped.' : 'Test failed. Check your connection.'); }
-  busy = null; $('testBtn').disabled = false; $('liveBtn').disabled = false;
+  busy = null; testing = false; $('testBtn').textContent = 'Run speed test'; $('testBtn').classList.remove('live'); $('liveBtn').disabled = false;
 };
 
 // ---- live mode ----
@@ -213,7 +178,7 @@ $('liveBtn').onclick = async () => {
   if (busy) { busy.abort(); return; }
   busy = new AbortController(); const sig = busy.signal;
   $('liveBtn').textContent = 'Stop live mode'; $('liveBtn').classList.add('live'); $('testBtn').disabled = true;
-  hist.dl.length = 0; hist.q.length = 0; setStatus('Live: walk around and watch the numbers.');
+  resetGauge('dl'); setStatus('Live: walk around and watch the numbers.');
   const state = { ema: null, ping: null }; let lost = false;
   while (!sig.aborted) {
     try {
@@ -221,8 +186,8 @@ $('liveBtn').onclick = async () => {
       if (sig.aborted) break;
       if (lost) { lost = false; setStatus('Reconnected. Live: walk around and watch the numbers.'); }
       trackBest(state.ema, state.ping); const q = quality(state.ema, state.ping);
-      $('dl').textContent = fmt(state.ema); $('ping').textContent = fmt(state.ping); showQuality(q); refNote();
-      Object.assign(last, { dl: state.ema, ping: state.ping, q }); push(state.ema, q);
+      gauge('dl', fmt(state.ema), true); $('ping').textContent = fmt(state.ping); showQuality(q); refNote();
+      Object.assign(last, { dl: state.ema, ping: state.ping, q });
     } catch (e) {
       if (sig.aborted) break;
       // connection lost or switching Wi-Fi: keep going and retry until it is back
@@ -236,5 +201,4 @@ $('liveBtn').onclick = async () => {
 };
 
 $('resetBtn').onclick = () => { peak.dl = 0; peak.ping = Infinity; refNote(); setStatus('Best reading reset.'); };
-draw();
 })();
