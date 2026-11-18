@@ -13,6 +13,26 @@ $('themeBtn').onclick = () => {
   draw();
 };
 
+// connection type: auto-detect when the browser reports it, else manual (remembered)
+function detectConn() {
+  const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  const t = c && c.type;
+  return t === 'wifi' || t === 'cellular' ? t : null;
+}
+function applyConn() {
+  const auto = detectConn(), seg = $('conn');
+  const val = auto || store.get('connType', null);
+  seg.classList.toggle('auto', !!auto);
+  seg.querySelectorAll('button').forEach(b => { b.classList.toggle('on', b.dataset.v === val); b.disabled = !!auto; });
+  $('connNote').textContent = auto ? 'Detected automatically' : (val ? '' : 'Not reported by this browser. Choose one.');
+}
+$('conn').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || detectConn()) return;
+  store.set('connType', b.dataset.v); applyConn();
+});
+(navigator.connection || {}).onchange = applyConn;
+applyConn();
+
 function setWifi(q) {
   const el = $('wifi'); const lv = q == null ? -1 : q >= 75 ? 3 : q >= 50 ? 2 : q >= 25 ? 1 : 0;
   el.style.color = q == null ? '' : qInfo(q)[1];

@@ -16,6 +16,12 @@
     <div>
       <h1>Speed test</h1>
       <p class="muted">Test your speed and walk around to find the strongest and weakest spots.</p>
+      <div class="conn row gap wrapx">
+        <div class="seg" id="conn" role="group" aria-label="Connection type">
+          <button type="button" data-v="wifi">Wi-Fi</button><button type="button" data-v="cellular">Cellular</button>
+        </div>
+        <span id="connNote" class="muted small"></span>
+      </div>
     </div>
     <div class="tools">
     <svg id="wifi" class="wifi" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" role="img" aria-label="Wi-Fi signal">
