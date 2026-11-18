@@ -13,9 +13,6 @@ $('themeBtn').onclick = () => {
   draw();
 };
 
-// network name + connection type
-$('ssid').value = store.get('ssid', '');
-$('ssid').oninput = e => store.set('ssid', e.target.value);
 function setWifi(q) {
   const el = $('wifi'); const lv = q == null ? -1 : q >= 75 ? 3 : q >= 50 ? 2 : q >= 25 ? 1 : 0;
   el.style.color = q == null ? '' : qInfo(q)[1];
