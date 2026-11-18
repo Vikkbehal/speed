@@ -200,5 +200,4 @@ $('liveBtn').onclick = async () => {
   busy = null; $('liveBtn').textContent = 'Start live mode'; $('liveBtn').classList.remove('live'); $('testBtn').disabled = false;
 };
 
-$('resetBtn').onclick = () => { peak.dl = 0; peak.ping = Infinity; refNote(); setStatus('Best reading reset.'); };
 })();
