@@ -9,6 +9,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Speed test">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -19,6 +26,7 @@
       <p class="muted">Test your speed and walk around to find the strongest and weakest spots.</p>
     </div>
     <div class="tools">
+      <button id="installBtn" class="btn small-btn" hidden>Install app</button>
       <span id="connType" class="badge" hidden></span>
       <svg id="wifi" class="wifi" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" role="img" aria-label="Wi-Fi signal">
         <title>Wi-Fi signal</title>
@@ -79,6 +87,7 @@
     <div id="qNote" class="muted small"></div>
     <div id="status" class="muted small">Ready.</div>
   </section>
+  <p id="iosHint" class="muted small center" hidden>To install: tap the Share button, then “Add to Home Screen”.</p>
   <footer class="muted small center">Tests use Cloudflare’s public speed endpoints. Results include your ISP’s limits.</footer>
 </main>
 <script src="app.js"></script>

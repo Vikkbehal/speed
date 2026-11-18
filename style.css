@@ -46,3 +46,5 @@ h1{font-size:22px;margin:0;letter-spacing:-.02em}
 .wifi .w.on{opacity:1}
 @media(max-width:420px){.gval{font-size:30px;margin-top:-72px;margin-bottom:28px}}
 [hidden]{display:none!important}
+.small-btn{height:30px;padding:0 12px;font-size:13px}
+body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}

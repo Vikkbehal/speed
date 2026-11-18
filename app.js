@@ -200,4 +200,13 @@ $('liveBtn').onclick = async () => {
   busy = null; $('liveBtn').textContent = 'Start live mode'; $('liveBtn').classList.remove('live'); $('testBtn').disabled = false;
 };
 
+
+// ---- install as an app (PWA) ----
+if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+let deferred = null;
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; $('installBtn').hidden = false; });
+$('installBtn').onclick = async () => { if (!deferred) return; deferred.prompt(); await deferred.userChoice; deferred = null; $('installBtn').hidden = true; };
+addEventListener('appinstalled', () => { $('installBtn').hidden = true; });
+const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !standalone) $('iosHint').hidden = false;
 })();
